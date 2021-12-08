@@ -1,0 +1,6 @@
+certifi==2021.10.8
+elasticsearch==7.16.0
+psycopg2-binary==2.9.2
+pydantic==1.8.2
+typing-extensions==4.0.1
+urllib3==1.26.7

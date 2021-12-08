@@ -1,0 +1,39 @@
+{
+    "dsn": {
+        "dbname": "movies_database",
+        "user": "postgres",
+        "password": 1234,
+        "host": "127.0.0.1",
+        "port": 5432
+    },
+    "es": {
+        "host": "http://127.0.0.1:9200/",
+        "index": "movies"
+    },
+    "enriched_producers": [
+        {
+            "name": "film_work_etl",
+            "state_file_path": "film_work_etl_state.json",
+            "limit": 100,
+            "state_field": "updated_at",
+            "producer_sql": "SELECT id, updated_at\n\tFROM content.film_work\nWHERE updated_at > %s\nORDER BY updated_at\nLIMIT %s;"
+        },
+        {
+            "name": "person_etl",
+            "state_file_path": "person_etl_state.json",
+            "state_field": "updated_at",
+            "limit": 100,
+            "producer_sql": "SELECT id, updated_at\nFROM content.person\nWHERE updated_at > %s\nORDER BY updated_at\nLIMIT %s;",
+            "enricher_sql": "SELECT fw.id, fw.updated_at\nFROM content.film_work fw\nLEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id\nWHERE pfw.person_id IN %s\nORDER BY fw.updated_at;"
+        },
+        {
+            "name": "genre_etl",
+            "state_file_path": "genre_etl_state.json",
+            "state_field": "updated_at",
+            "limit": 100,
+            "producer_sql": "SELECT id, updated_at\nFROM content.genre\nWHERE updated_at > %s\nORDER BY updated_at\nLIMIT %s;",
+            "enricher_sql": "SELECT fw.id, fw.updated_at\nFROM content.film_work fw\nLEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id\nWHERE gfw.genre_id IN %s\nORDER BY fw.updated_at;"
+        }
+    ],
+    "merger_sql": "SELECT\n    fw.id as fw_id,\n    fw.title,\n    fw.description,\n    fw.rating,\n    fw.type,\n    fw.created_at,\n    fw.updated_at,\n    pfw.role,\n    p.id,\n    p.full_name,\n    g.name\nFROM content.film_work fw\nLEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id\nLEFT JOIN content.person p ON p.id = pfw.person_id\nLEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id\nLEFT JOIN content.genre g ON g.id = gfw.genre_id\nWHERE fw.id IN %s\nORDER BY fw.id;"
+}
