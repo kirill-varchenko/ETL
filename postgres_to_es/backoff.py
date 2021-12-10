@@ -3,7 +3,7 @@ import time
 from functools import wraps
 
 
-def backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10):
+def backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10, max_tries=20):
     """
     Функция для повторного выполнения функции через некоторое время, если возникла ошибка.
     Использует наивный экспоненциальный рост времени повтора (factor) до граничного времени ожидания
@@ -22,7 +22,9 @@ def backoff(start_sleep_time=0.1, factor=2, border_sleep_time=10):
         @wraps(func)
         def inner(*args, **kwargs):
             t = start_sleep_time
-            while True:
+            n = 0
+            while n < max_tries:
+                n + 1
                 try:
                     return func(*args, **kwargs)
                 except:

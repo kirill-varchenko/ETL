@@ -10,17 +10,17 @@ class EnrichedProducer:
     def __init__(self, settings: EnrichedProducerSettings, db: PostgresConnection):
         self.settings = settings
         self.db = db
-        self.state = State(JsonFileStorage(self.settings.state_file_path))
+        self.state_manager = State(JsonFileStorage(self.settings.state_file_path))
+        self.state = self.state_manager.get_state(self.settings.state_field)
 
     def produce(self) -> Generator[list[str], None, None]:
         n = 0
         while True:
             n += 1
             logging.info(f"Batch {n}")
-            last_state = self.state.get_state(self.settings.state_field)
             query = self.settings.producer_sql
-            args = (last_state, self.settings.limit)
-            if not last_state:
+            args = (self.state, self.settings.limit)
+            if not self.state:
                 query = "\n".join(
                     line for line in query.split("\n") if not line.startswith("WHERE")
                 )
@@ -31,8 +31,8 @@ class EnrichedProducer:
             if not data:
                 break
 
-            new_state = data[-1][self.settings.state_field]
-            self.state.set_state(self.settings.state_field, new_state)
+            self.state = data[-1][self.settings.state_field]
+
             yield [item["id"] for item in data]
 
     def enrich(self, ids: list[str]) -> list[str]:
@@ -41,6 +41,9 @@ class EnrichedProducer:
             return [item["id"] for item in data]
         else:
             return ids
+
+    def save_state(self):
+        self.state_manager.set_state(self.settings.state_field, self.state)
 
     @property
     def name(self):

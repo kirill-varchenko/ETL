@@ -28,3 +28,4 @@ class Config(BaseModel):
     es: ESSettings
     enriched_producers: list[EnrichedProducerSettings]
     merger_sql: str
+    es_limit: int

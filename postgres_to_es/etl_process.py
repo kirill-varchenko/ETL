@@ -1,11 +1,22 @@
 import logging
-from itertools import groupby
+import itertools
 
 from config import Config, DSNSettings, EnrichedProducerSettings, ESSettings
 from enriched_producer import EnrichedProducer
 from es_item import ESItem, PersonItem
 from es_loader import ESLoader
 from postgres_connection import PostgresConnection
+
+
+def grouper_it(iterable, n):
+    it = iter(iterable)
+    while True:
+        chunk_it = itertools.islice(it, n)
+        try:
+            first_el = next(chunk_it)
+        except StopIteration:
+            return
+        yield itertools.chain((first_el,), chunk_it)
 
 
 class ETLProcess:
@@ -15,6 +26,7 @@ class ETLProcess:
             EnrichedProducer(ep, self.db) for ep in config.enriched_producers
         ]
         self.merger_sql = config.merger_sql
+        self.es_limit = config.es_limit
         self.es_loader = ESLoader(config.es.host, config.es.index)
 
     def merge(self, ids: list[str]) -> list:
@@ -70,10 +82,18 @@ class ETLProcess:
         return res
 
     def process(self):
+        ids_to_update = set()
         for enriched_producer in self.enriched_producers:
             logging.info(f"Running {enriched_producer.name}")
             for batch in enriched_producer.produce():
                 ids = enriched_producer.enrich(batch)
-                postgres_data = self.merge(ids)
-                transformed_data = self.transform(postgres_data)
-                self.es_loader.load(transformed_data)
+                ids_to_update |= set(ids)
+
+        for ids in grouper_it(ids_to_update, self.es_limit):
+            postgres_data = self.merge(ids)
+            transformed_data = self.transform(postgres_data)
+            self.es_loader.load(transformed_data)
+
+        for enriched_producer in self.enriched_producers:
+            enriched_producer.save_state()
+

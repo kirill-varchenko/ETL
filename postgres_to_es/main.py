@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from time import sleep
 import logging
 import os
 
@@ -11,4 +12,6 @@ if __name__ == "__main__":
     config = Config.parse_file("config.json")
     config.dsn.password = os.environ.get('DB_PASSWORD')
     etl_process = ETLProcess(config)
-    etl_process.process()
+    while True:
+        etl_process.process()
+        sleep(60)
